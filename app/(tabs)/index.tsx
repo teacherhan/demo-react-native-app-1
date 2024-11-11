@@ -1,7 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber/native";
 import { useGLTF, Plane } from "@react-three/drei";
-import { View, StyleSheet, Text, Animated } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Text,
+  Animated,
+  ScrollView,
+  Button,
+  TouchableOpacity,
+} from "react-native";
 import { Asset } from "expo-asset";
 import {
   PanGestureHandler,
@@ -9,6 +17,7 @@ import {
   State,
 } from "react-native-gesture-handler";
 import { useSpring, animated as a } from "@react-spring/three";
+import { Ionicons } from "@expo/vector-icons"; // For the close icon
 
 function Model({ path, position, scale, isActive }) {
   const { scene } = useGLTF(Asset.fromModule(path).uri);
@@ -31,6 +40,31 @@ function Model({ path, position, scale, isActive }) {
   );
 }
 
+function FeatureOverlay({ feature, onClose }) {
+  const slideAnim = useRef(new Animated.Value(300)).current;
+
+  useEffect(() => {
+    // Slide up animation for overlay
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[styles.overlay, { transform: [{ translateY: slideAnim }] }]}
+    >
+      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+        <Ionicons name="close" size={24} color="white" />
+      </TouchableOpacity>
+      <Text style={styles.overlayTitle}>{feature}</Text>
+      <Text style={styles.overlayContent}>More details about {feature}...</Text>
+    </Animated.View>
+  );
+}
+
 export default function HomeScreen() {
   const modelPaths = [
     require("@/assets/models/w.gltf"), // Default center model
@@ -42,14 +76,20 @@ export default function HomeScreen() {
     {
       title: "Model W Information",
       description: "Details about model W. Random fact 1.",
+      features: ["Feature 1", "Feature 2", "Feature 3"],
+      cta: "Learn More",
     },
     {
       title: "Model S Information",
       description: "Details about model S. Random fact 2.",
+      features: ["Feature A", "Feature B", "Feature C"],
+      cta: "Get Started",
     },
     {
       title: "Model B Information",
       description: "Details about model B. Random fact 3.",
+      features: ["Feature X", "Feature Y", "Feature Z"],
+      cta: "Explore More",
     },
   ];
 
@@ -57,6 +97,7 @@ export default function HomeScreen() {
   const modelCount = modelPaths.length;
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const [selectedFeature, setSelectedFeature] = useState(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const translateAnim = useRef(new Animated.Value(0)).current;
 
@@ -87,10 +128,14 @@ export default function HomeScreen() {
     // Smoothly animate the rotation using react-spring
     api.start({ rotation: newRotation });
 
-    // Update active index after animation is complete
-    const newIndex = Math.round(
-      (modelCount - newRotation / ((2 * Math.PI) / modelCount)) % modelCount
-    );
+    // Update active index after animation is complete, ensuring it wraps correctly
+    const newIndex =
+      (Math.round(
+        (modelCount - newRotation / ((2 * Math.PI) / modelCount)) % modelCount
+      ) +
+        modelCount) %
+      modelCount;
+
     if (newIndex !== activeIndex) {
       animateInfoTransition(newIndex);
     }
@@ -187,12 +232,43 @@ export default function HomeScreen() {
               },
             ]}
           >
-            <Text style={styles.infoTitle}>{infoPages[activeIndex].title}</Text>
-            <Text style={styles.infoDescription}>
-              {infoPages[activeIndex].description}
-            </Text>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+              <Text style={styles.infoTitle}>
+                {infoPages[activeIndex].title}
+              </Text>
+              <Text style={styles.infoDescription}>
+                {infoPages[activeIndex].description}
+              </Text>
+
+              <Text style={styles.featuresTitle}>Features:</Text>
+              {infoPages[activeIndex].features.map((feature, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => setSelectedFeature(feature)}
+                >
+                  <Text style={styles.featureItem}>• {feature}</Text>
+                </TouchableOpacity>
+              ))}
+
+              <View style={styles.ctaButton}>
+                <Button
+                  title={infoPages[activeIndex].cta}
+                  onPress={() =>
+                    alert(`${infoPages[activeIndex].cta} clicked!`)
+                  }
+                />
+              </View>
+            </ScrollView>
           </Animated.View>
         </View>
+
+        {/* Overlay for Feature Details */}
+        {selectedFeature && (
+          <FeatureOverlay
+            feature={selectedFeature}
+            onClose={() => setSelectedFeature(null)}
+          />
+        )}
       </View>
     </GestureHandlerRootView>
   );
@@ -204,24 +280,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
   },
   topHalf: {
-    flex: 1, // Occupies the top half
+    flex: 1,
     backgroundColor: "#111",
   },
   bottomHalf: {
-    flex: 1, // Occupies the bottom half
+    flex: 1,
     backgroundColor: "#222",
     padding: 20,
-    justifyContent: "center",
+  },
+  scrollContent: {
+    paddingBottom: 20,
     alignItems: "center",
   },
   infoContainer: {
-    position: "absolute",
-    bottom: 20,
-    width: "100%",
-    alignItems: "center",
+    flex: 1,
   },
   infoTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
     color: "#fff",
     marginBottom: 10,
@@ -231,5 +306,49 @@ const styles = StyleSheet.create({
     color: "#ddd",
     textAlign: "center",
     marginBottom: 20,
+  },
+  featuresTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 10,
+  },
+  featureItem: {
+    fontSize: 16,
+    color: "#ddd",
+    marginBottom: 5,
+    textDecorationLine: "underline",
+  },
+  ctaButton: {
+    marginTop: 20,
+    width: "80%",
+  },
+  overlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "50%",
+    backgroundColor: "#333",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  closeButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+  },
+  overlayTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  overlayContent: {
+    fontSize: 16,
+    color: "white",
+    textAlign: "center",
   },
 });
