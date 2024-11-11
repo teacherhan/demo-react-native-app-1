@@ -16,4 +16,11 @@ const config = getDefaultConfig(__dirname);
   }
 });
 
+// Adding extraNodeModules to help Metro find react-native and @react-spring/native
+config.resolver.extraNodeModules = {
+  ...config.resolver.extraNodeModules,
+  "react-native": require.resolve("react-native"),
+  "@react-spring/native": require.resolve("@react-spring/native"),
+};
+
 module.exports = config;

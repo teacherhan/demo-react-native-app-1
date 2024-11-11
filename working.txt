@@ -1,0 +1,142 @@
+import React, { useState, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber/native';
+import { useGLTF, Plane } from '@react-three/drei';
+import { View, StyleSheet, Text } from 'react-native';
+import { Asset } from 'expo-asset';
+import { PanGestureHandler, GestureHandlerRootView, State } from 'react-native-gesture-handler';
+import { useSpring, animated } from '@react-spring/three';
+
+function Model({ path, position, scale, isActive }) {
+  const { scene } = useGLTF(Asset.fromModule(path).uri);
+  const modelRef = useRef();
+
+  // Rotate the model if it is active
+  useFrame(() => {
+    if (isActive && modelRef.current) {
+      modelRef.current.rotation.y += 0.01; // Adjust rotation speed as needed
+    }
+  });
+
+  return <primitive object={scene} ref={modelRef} position={position} scale={scale} />;
+}
+
+export default function HomeScreen() {
+  const modelPaths = [
+    require('@/assets/models/w.gltf'), // Default center model
+    require('@/assets/models/s.gltf'),
+    require('@/assets/models/b.gltf'),
+  ];
+
+  const radius = 2.5; // Radius for the circular arrangement around the Z-axis
+  const modelCount = modelPaths.length;
+
+  // Track the rotation angle directly and animate with react-spring
+  const [angle, setAngle] = useState(0);
+  const springProps = useSpring({
+    rotation: angle,
+    config: { tension: 200, friction: 30 },
+  });
+
+  const handleSwipe = (event) => {
+    const { translationX, state } = event.nativeEvent;
+
+    if (state === State.END) {
+      if (translationX < -50) {
+        // Swipe left - rotate counterclockwise
+        setAngle((prevAngle) => prevAngle - (2 * Math.PI) / modelCount);
+      } else if (translationX > 50) {
+        // Swipe right - rotate clockwise
+        setAngle((prevAngle) => prevAngle + (2 * Math.PI) / modelCount);
+      }
+    }
+  };
+
+  // Determine the active model index based on the angle
+  const activeIndex = Math.round((modelCount - (angle / ((2 * Math.PI) / modelCount))) % modelCount);
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        {/* Top Half: 3D Model Carousel */}
+        <PanGestureHandler onHandlerStateChange={handleSwipe}>
+          <View style={styles.topHalf}>
+            <Canvas camera={{ position: [0, 0, 6], fov: 50 }}>
+              <ambientLight intensity={0.5} />
+              <directionalLight position={[10, 10, 5]} intensity={1} />
+
+              {/* Animated group that rotates based on the spring angle */}
+              <animated.group rotation-y={springProps.rotation} position={[0, -1, 0]}>
+                {modelPaths.map((path, i) => {
+                  const itemAngle = (2 * Math.PI * i) / modelCount;
+                  const x = radius * Math.sin(itemAngle); // Arrange models on X-Z plane with Z-axis centered
+                  const z = radius * Math.cos(itemAngle);
+
+                  return (
+                    <Model
+                      key={i}
+                      path={path}
+                      position={[x, 0, z]}
+                      scale={[1, 1, 1]}
+                      isActive={i === activeIndex} // Pass whether the model is active
+                    />
+                  );
+                })}
+              </animated.group>
+
+              {/* Blur Plane covering the whole top half */}
+              <Plane
+                args={[10, 10]} // Large enough to cover the entire top half
+                position={[0, 0, 3]} // Positioned closer to the camera
+                rotation={[0, 0, 0]}
+              >
+                <meshStandardMaterial
+                  transparent
+                  opacity={0.5} // Adjust opacity for blur effect
+                  color="gray" // Adjust color as desired
+                />
+              </Plane>
+            </Canvas>
+          </View>
+        </PanGestureHandler>
+
+        {/* Bottom Half: Information and Interaction */}
+        <View style={styles.bottomHalf}>
+          <Text style={styles.infoText}>3D Model Carousel</Text>
+          <Text style={styles.infoDescription}>
+            Swipe left or right to rotate the carousel and view different models.
+          </Text>
+        </View>
+      </View>
+    </GestureHandlerRootView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  topHalf: {
+    flex: 1, // Occupies the top half
+    backgroundColor: '#111',
+  },
+  bottomHalf: {
+    flex: 1, // Occupies the bottom half
+    backgroundColor: '#222',
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  infoDescription: {
+    fontSize: 16,
+    color: '#ddd',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+});
