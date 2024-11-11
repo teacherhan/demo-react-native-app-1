@@ -9,6 +9,7 @@ import {
   ScrollView,
   Button,
   TouchableOpacity,
+  Dimensions,
 } from "react-native";
 import { Asset } from "expo-asset";
 import {
@@ -17,7 +18,9 @@ import {
   State,
 } from "react-native-gesture-handler";
 import { useSpring, animated as a } from "@react-spring/three";
-import { Ionicons } from "@expo/vector-icons"; // For the close icon
+import { Ionicons } from "@expo/vector-icons";
+
+const { height: screenHeight } = Dimensions.get("window");
 
 function Model({ path, position, scale, isActive }) {
   const { scene } = useGLTF(Asset.fromModule(path).uri);
@@ -26,7 +29,7 @@ function Model({ path, position, scale, isActive }) {
   // Rotate the model if it is active
   useFrame(() => {
     if (isActive && modelRef.current) {
-      modelRef.current.rotation.y += 0.01; // Adjust rotation speed as needed
+      modelRef.current.rotation.y += 0.001;
     }
   });
 
@@ -41,22 +44,33 @@ function Model({ path, position, scale, isActive }) {
 }
 
 function FeatureOverlay({ feature, onClose }) {
-  const slideAnim = useRef(new Animated.Value(300)).current;
+  const slideAnim = useRef(new Animated.Value(screenHeight)).current;
 
   useEffect(() => {
-    // Slide up animation for overlay
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 300,
+    // Slide up animation with a slower bounce
+    Animated.spring(slideAnim, {
+      toValue: screenHeight * 0.05, // 5% down from the top
       useNativeDriver: true,
+      friction: 12,
+      tension: 50,
     }).start();
   }, []);
+
+  const handleClose = () => {
+    // Slide down animation to close the overlay
+    Animated.spring(slideAnim, {
+      toValue: screenHeight,
+      useNativeDriver: true,
+      friction: 10,
+      tension: 40,
+    }).start(() => onClose());
+  };
 
   return (
     <Animated.View
       style={[styles.overlay, { transform: [{ translateY: slideAnim }] }]}
     >
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+      <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
         <Ionicons name="close" size={24} color="white" />
       </TouchableOpacity>
       <Text style={styles.overlayTitle}>{feature}</Text>
@@ -66,11 +80,18 @@ function FeatureOverlay({ feature, onClose }) {
 }
 
 export default function HomeScreen() {
-  const modelPaths = [
-    require("@/assets/models/w.gltf"), // Default center model
-    require("@/assets/models/s.gltf"),
-    require("@/assets/models/b.gltf"),
-  ];
+  const modelPaths = {
+    info: [
+      require("@/assets/models/w.gltf"), // Info 3D assets
+      require("@/assets/models/s.gltf"),
+      require("@/assets/models/b.gltf"),
+    ],
+    action: [
+      require("@/assets/models/x.gltf"), // Action 3D assets
+      require("@/assets/models/y.gltf"),
+      require("@/assets/models/z.gltf"),
+    ],
+  };
 
   const infoPages = [
     {
@@ -93,15 +114,36 @@ export default function HomeScreen() {
     },
   ];
 
-  const radius = 2.5; // Radius for the circular arrangement around the Z-axis
-  const modelCount = modelPaths.length;
+  const actionPages = [
+    {
+      title: "Action X Information",
+      description: "Details about action X. Random task 1.",
+      features: ["Task A", "Task B", "Task C"],
+      cta: "Perform Task",
+    },
+    {
+      title: "Action Y Information",
+      description: "Details about action Y. Random task 2.",
+      features: ["Task 1", "Task 2", "Task 3"],
+      cta: "Begin Action",
+    },
+    {
+      title: "Action Z Information",
+      description: "Details about action Z. Random task 3.",
+      features: ["Task Alpha", "Task Beta", "Task Gamma"],
+      cta: "Execute",
+    },
+  ];
+
+  const radius = 2.5;
+  const modelCount = modelPaths.info.length;
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [selectedFeature, setSelectedFeature] = useState(null);
+  const [toggle, setToggle] = useState("info"); // Toggle between 'info' and 'action'
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const translateAnim = useRef(new Animated.Value(0)).current;
 
-  // Smooth rotation angle with react-spring
   const [{ rotation }, api] = useSpring(() => ({
     rotation: 0,
     config: { tension: 200, friction: 30 },
@@ -113,10 +155,8 @@ export default function HomeScreen() {
     if (state === State.END) {
       let newRotation = rotation.get() || 0;
       if (translationX < -50) {
-        // Swipe left - rotate counterclockwise
         newRotation -= (2 * Math.PI) / modelCount;
       } else if (translationX > 50) {
-        // Swipe right - rotate clockwise
         newRotation += (2 * Math.PI) / modelCount;
       }
 
@@ -125,10 +165,7 @@ export default function HomeScreen() {
   };
 
   const animateRotation = (newRotation) => {
-    // Smoothly animate the rotation using react-spring
     api.start({ rotation: newRotation });
-
-    // Update active index after animation is complete, ensuring it wraps correctly
     const newIndex =
       (Math.round(
         (modelCount - newRotation / ((2 * Math.PI) / modelCount)) % modelCount
@@ -141,9 +178,7 @@ export default function HomeScreen() {
     }
   };
 
-  // Function to handle fade out and fade in animation
   const animateInfoTransition = (newIndex) => {
-    // Fade out and slide down the current text
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -156,10 +191,7 @@ export default function HomeScreen() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // Update the active index
       setActiveIndex(newIndex);
-
-      // Reset position and fade in new text
       translateAnim.setValue(20);
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -176,21 +208,23 @@ export default function HomeScreen() {
     });
   };
 
+  const displayedModels =
+    toggle === "info" ? modelPaths.info : modelPaths.action;
+  const displayedPages = toggle === "info" ? infoPages : actionPages;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.container}>
-        {/* Top Half: 3D Model Carousel */}
         <PanGestureHandler onHandlerStateChange={handleSwipe}>
           <View style={styles.topHalf}>
             <Canvas camera={{ position: [0, 0, 6], fov: 50 }}>
               <ambientLight intensity={0.5} />
               <directionalLight position={[10, 10, 5]} intensity={1} />
 
-              {/* Animated group that rotates smoothly based on react-spring angle */}
               <a.group rotation-y={rotation} position={[0, -1, 0]}>
-                {modelPaths.map((path, i) => {
+                {displayedModels.map((path, i) => {
                   const itemAngle = (2 * Math.PI * i) / modelCount;
-                  const x = radius * Math.sin(itemAngle); // Arrange models on X-Z plane with Z-axis centered
+                  const x = radius * Math.sin(itemAngle);
                   const z = radius * Math.cos(itemAngle);
 
                   return (
@@ -199,29 +233,23 @@ export default function HomeScreen() {
                       path={path}
                       position={[x, 0, z]}
                       scale={[1, 1, 1]}
-                      isActive={i === activeIndex} // Pass whether the model is active
+                      isActive={i === activeIndex}
                     />
                   );
                 })}
               </a.group>
 
-              {/* Updated Blur Plane covering the whole top half */}
               <Plane
-                args={[10, 10]} // Large enough to cover the entire top half
-                position={[0, 0, 0.5]} // Positioned closer to the camera
+                args={[10, 10]}
+                position={[0, 0, 0.5]}
                 rotation={[0, 0, 0]}
               >
-                <meshStandardMaterial
-                  transparent
-                  opacity={0.8} // Updated opacity for stronger blur effect
-                  color="gray" // Set the color for the blur effect
-                />
+                <meshStandardMaterial transparent opacity={0.8} color="gray" />
               </Plane>
             </Canvas>
           </View>
         </PanGestureHandler>
 
-        {/* Bottom Half: Information and Interaction */}
         <View style={styles.bottomHalf}>
           <Animated.View
             style={[
@@ -234,14 +262,14 @@ export default function HomeScreen() {
           >
             <ScrollView contentContainerStyle={styles.scrollContent}>
               <Text style={styles.infoTitle}>
-                {infoPages[activeIndex].title}
+                {displayedPages[activeIndex].title}
               </Text>
               <Text style={styles.infoDescription}>
-                {infoPages[activeIndex].description}
+                {displayedPages[activeIndex].description}
               </Text>
 
               <Text style={styles.featuresTitle}>Features:</Text>
-              {infoPages[activeIndex].features.map((feature, idx) => (
+              {displayedPages[activeIndex].features.map((feature, idx) => (
                 <TouchableOpacity
                   key={idx}
                   onPress={() => setSelectedFeature(feature)}
@@ -252,17 +280,22 @@ export default function HomeScreen() {
 
               <View style={styles.ctaButton}>
                 <Button
-                  title={infoPages[activeIndex].cta}
+                  title={displayedPages[activeIndex].cta}
                   onPress={() =>
-                    alert(`${infoPages[activeIndex].cta} clicked!`)
+                    alert(`${displayedPages[activeIndex].cta} clicked!`)
                   }
                 />
               </View>
             </ScrollView>
           </Animated.View>
+          <View style={styles.toggleContainer}>
+            <Button
+              title={`Switch to ${toggle === "info" ? "Action" : "Info"}`}
+              onPress={() => setToggle(toggle === "info" ? "action" : "info")}
+            />
+          </View>
         </View>
 
-        {/* Overlay for Feature Details */}
         {selectedFeature && (
           <FeatureOverlay
             feature={selectedFeature}
@@ -285,8 +318,12 @@ const styles = StyleSheet.create({
   },
   bottomHalf: {
     flex: 1,
-    backgroundColor: "#222",
+    backgroundColor: "#313131",
     padding: 20,
+  },
+  toggleContainer: {
+    marginBottom: 20,
+    alignItems: "center",
   },
   scrollContent: {
     paddingBottom: 20,
@@ -325,10 +362,10 @@ const styles = StyleSheet.create({
   },
   overlay: {
     position: "absolute",
-    bottom: 0,
+    top: screenHeight * 0.05,
     left: 0,
     right: 0,
-    height: "50%",
+    height: "100%",
     backgroundColor: "#333",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
