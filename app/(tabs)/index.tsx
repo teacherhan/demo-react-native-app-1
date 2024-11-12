@@ -26,7 +26,6 @@ function Model({ path, position, scale, isActive }) {
   const { scene } = useGLTF(Asset.fromModule(path).uri);
   const modelRef = useRef();
 
-  // Rotate the model if it is active
   useFrame(() => {
     if (isActive && modelRef.current) {
       modelRef.current.rotation.y += 0.005;
@@ -47,9 +46,8 @@ function FeatureOverlay({ feature, onClose }) {
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
 
   useEffect(() => {
-    // Slide up animation with a slower bounce
     Animated.spring(slideAnim, {
-      toValue: screenHeight * 0.05, // 5% down from the top
+      toValue: screenHeight * 0.05,
       useNativeDriver: true,
       friction: 12,
       tension: 50,
@@ -57,7 +55,6 @@ function FeatureOverlay({ feature, onClose }) {
   }, []);
 
   const handleClose = () => {
-    // Slide down animation to close the overlay
     Animated.spring(slideAnim, {
       toValue: screenHeight,
       useNativeDriver: true,
@@ -82,13 +79,13 @@ function FeatureOverlay({ feature, onClose }) {
 export default function HomeScreen() {
   const modelPaths = {
     info: [
-      require("@/assets/models/w.gltf"), // Info 3D assets
+      require("@/assets/models/w.gltf"),
       require("@/assets/models/s.gltf"),
       require("@/assets/models/b.gltf"),
       require("@/assets/models/camp.gltf"),
     ],
     action: [
-      require("@/assets/models/x.gltf"), // Action 3D assets
+      require("@/assets/models/x.gltf"),
       require("@/assets/models/y.gltf"),
       require("@/assets/models/z.gltf"),
     ],
@@ -97,26 +94,26 @@ export default function HomeScreen() {
   const infoPages = [
     {
       title: "Model W Information",
-      description: "Details about model W. Random fact 1.",
-      features: ["Feature 1", "Feature 2", "Feature 3"],
+      description: "Details about model W.",
+      features: ["Feature 1", "Feature 2"],
       cta: "Learn More",
     },
     {
       title: "Model S Information",
-      description: "Details about model S. Random fact 2.",
-      features: ["Feature A", "Feature B", "Feature C"],
+      description: "Details about model S.",
+      features: ["Feature A", "Feature B"],
       cta: "Get Started",
     },
     {
       title: "Model B Information",
-      description: "Details about model B. Random fact 3.",
-      features: ["Feature X", "Feature Y", "Feature Z"],
+      description: "Details about model B.",
+      features: ["Feature X", "Feature Y"],
       cta: "Explore More",
     },
     {
       title: "Model Camp Information",
-      description: "Details about model B. Random fact 3.",
-      features: ["Feature X", "Feature Y", "Feature Z"],
+      description: "Details about model Camp.",
+      features: ["Feature X", "Feature Y"],
       cta: "Explore More",
     },
   ];
@@ -124,40 +121,41 @@ export default function HomeScreen() {
   const actionPages = [
     {
       title: "Action X Information",
-      description: "Details about action X. Random task 1.",
-      features: ["Task A", "Task B", "Task C"],
+      description: "Details about action X.",
+      features: ["Task A", "Task B"],
       cta: "Perform Task",
     },
     {
       title: "Action Y Information",
-      description: "Details about action Y. Random task 2.",
-      features: ["Task 1", "Task 2", "Task 3"],
+      description: "Details about action Y.",
+      features: ["Task 1", "Task 2"],
       cta: "Begin Action",
     },
     {
       title: "Action Z Information",
-      description: "Details about action Z. Random task 3.",
-      features: ["Task Alpha", "Task Beta", "Task Gamma"],
+      description: "Details about action Z.",
+      features: ["Task Alpha", "Task Beta"],
       cta: "Execute",
     },
   ];
 
   const radius = 2.5;
-  const modelCount = modelPaths.info.length;
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [selectedFeature, setSelectedFeature] = useState(null);
-  const [toggle, setToggle] = useState("info"); // Toggle between 'info' and 'action'
+  const [toggle, setToggle] = useState("info");
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const translateAnim = useRef(new Animated.Value(0)).current;
 
-  const [{ rotation }, api] = useSpring(() => ({
+  const [{ rotation, scale }, api] = useSpring(() => ({
     rotation: 0,
+    scale: 1,
     config: { tension: 200, friction: 30 },
   }));
 
   const handleSwipe = (event) => {
     const { translationX, state } = event.nativeEvent;
+    const modelCount = modelPaths[toggle].length;
 
     if (state === State.END) {
       let newRotation = rotation.get() || 0;
@@ -167,11 +165,11 @@ export default function HomeScreen() {
         newRotation += (2 * Math.PI) / modelCount;
       }
 
-      animateRotation(newRotation);
+      animateRotation(newRotation, modelCount);
     }
   };
 
-  const animateRotation = (newRotation) => {
+  const animateRotation = (newRotation, modelCount) => {
     api.start({ rotation: newRotation });
     const newIndex =
       (Math.round(
@@ -215,6 +213,20 @@ export default function HomeScreen() {
     });
   };
 
+  const handleToggle = () => {
+    const isInfo = toggle === "info";
+    const modelCount = modelPaths[isInfo ? "info" : "action"].length;
+
+    // Animate current models moving out
+    api.start({ scale: 0.5 });
+
+    setTimeout(() => {
+      setToggle(isInfo ? "action" : "info");
+      setActiveIndex(0); // Reset active index for new toggle set
+      api.start({ scale: 1 }); // Bring new models in with scale animation
+    }, 300);
+  };
+
   const displayedModels =
     toggle === "info" ? modelPaths.info : modelPaths.action;
   const displayedPages = toggle === "info" ? infoPages : actionPages;
@@ -228,9 +240,13 @@ export default function HomeScreen() {
               <ambientLight intensity={0.5} />
               <directionalLight position={[10, 10, 5]} intensity={1} />
 
-              <a.group rotation-y={rotation} position={[0, -1, 0]}>
+              <a.group
+                rotation-y={rotation}
+                scale={scale}
+                position={[0, -1, 0]}
+              >
                 {displayedModels.map((path, i) => {
-                  const itemAngle = (2 * Math.PI * i) / modelCount;
+                  const itemAngle = (2 * Math.PI * i) / displayedModels.length;
                   const x = radius * Math.sin(itemAngle);
                   const z = radius * Math.cos(itemAngle);
 
@@ -261,10 +277,7 @@ export default function HomeScreen() {
           <Animated.View
             style={[
               styles.infoContainer,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: translateAnim }],
-              },
+              { opacity: fadeAnim, transform: [{ translateY: translateAnim }] },
             ]}
           >
             <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -274,7 +287,6 @@ export default function HomeScreen() {
               <Text style={styles.infoDescription}>
                 {displayedPages[activeIndex].description}
               </Text>
-
               <Text style={styles.featuresTitle}>Features:</Text>
               {displayedPages[activeIndex].features.map((feature, idx) => (
                 <TouchableOpacity
@@ -284,7 +296,6 @@ export default function HomeScreen() {
                   <Text style={styles.featureItem}>• {feature}</Text>
                 </TouchableOpacity>
               ))}
-
               <View style={styles.ctaButton}>
                 <Button
                   title={displayedPages[activeIndex].cta}
@@ -298,7 +309,7 @@ export default function HomeScreen() {
           <View style={styles.toggleContainer}>
             <Button
               title={`Switch to ${toggle === "info" ? "Action" : "Info"}`}
-              onPress={() => setToggle(toggle === "info" ? "action" : "info")}
+              onPress={handleToggle}
             />
           </View>
         </View>
@@ -315,30 +326,12 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-  topHalf: {
-    flex: 1,
-    backgroundColor: "#111",
-  },
-  bottomHalf: {
-    flex: 1,
-    backgroundColor: "#313131",
-    padding: 20,
-  },
-  toggleContainer: {
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  scrollContent: {
-    paddingBottom: 20,
-    alignItems: "center",
-  },
-  infoContainer: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: "#000" },
+  topHalf: { flex: 1, backgroundColor: "#111" },
+  bottomHalf: { flex: 1, backgroundColor: "#313131", padding: 20 },
+  toggleContainer: { marginBottom: 20, alignItems: "center" },
+  scrollContent: { paddingBottom: 20, alignItems: "center" },
+  infoContainer: { flex: 1 },
   infoTitle: {
     fontSize: 22,
     fontWeight: "bold",
@@ -363,10 +356,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     textDecorationLine: "underline",
   },
-  ctaButton: {
-    marginTop: 20,
-    width: "80%",
-  },
+  ctaButton: { marginTop: 20, width: "80%" },
   overlay: {
     position: "absolute",
     top: screenHeight * 0.05,
@@ -378,11 +368,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 20,
   },
-  closeButton: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-  },
+  closeButton: { position: "absolute", top: 10, right: 10 },
   overlayTitle: {
     fontSize: 20,
     fontWeight: "bold",
@@ -390,9 +376,5 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: "center",
   },
-  overlayContent: {
-    fontSize: 16,
-    color: "white",
-    textAlign: "center",
-  },
+  overlayContent: { fontSize: 16, color: "white", textAlign: "center" },
 });
