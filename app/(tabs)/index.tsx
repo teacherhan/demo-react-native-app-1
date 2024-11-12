@@ -139,7 +139,7 @@ export default function HomeScreen() {
     },
   ];
 
-  const radius = 2.5;
+  const radius = 4;
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [selectedFeature, setSelectedFeature] = useState(null);
@@ -149,7 +149,7 @@ export default function HomeScreen() {
 
   const [{ rotation, scale }, api] = useSpring(() => ({
     rotation: 0,
-    scale: 1,
+    scale: 2,
     config: { tension: 200, friction: 30 },
   }));
 
@@ -236,7 +236,7 @@ export default function HomeScreen() {
       <View style={styles.container}>
         <PanGestureHandler onHandlerStateChange={handleSwipe}>
           <View style={styles.topHalf}>
-            <Canvas camera={{ position: [0, 0, 6], fov: 50 }}>
+            <Canvas camera={{ position: [0, 0, 8], fov: 50 }}>
               <ambientLight intensity={0.5} />
               <directionalLight position={[10, 10, 5]} intensity={1} />
 
@@ -262,11 +262,7 @@ export default function HomeScreen() {
                 })}
               </a.group>
 
-              <Plane
-                args={[10, 10]}
-                position={[0, 0, 0.5]}
-                rotation={[0, 0, 0]}
-              >
+              <Plane args={[10, 10]} position={[0, 0, 3]} rotation={[0, 0, 0]}>
                 <meshStandardMaterial transparent opacity={0.8} color="gray" />
               </Plane>
             </Canvas>
@@ -304,14 +300,14 @@ export default function HomeScreen() {
                   }
                 />
               </View>
+              <View style={styles.toggleContainer}>
+                <Button
+                  title={`Switch to ${toggle === "info" ? "Action" : "Info"}`}
+                  onPress={handleToggle}
+                />
+              </View>
             </ScrollView>
           </Animated.View>
-          <View style={styles.toggleContainer}>
-            <Button
-              title={`Switch to ${toggle === "info" ? "Action" : "Info"}`}
-              onPress={handleToggle}
-            />
-          </View>
         </View>
 
         {selectedFeature && (
@@ -326,7 +322,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
+  container: { flex: 1, backgroundColor: "#313131", marginTop: 52 },
   topHalf: { flex: 1, backgroundColor: "#111" },
   bottomHalf: { flex: 1, backgroundColor: "#313131", padding: 20 },
   toggleContainer: { marginBottom: 20, alignItems: "center" },
