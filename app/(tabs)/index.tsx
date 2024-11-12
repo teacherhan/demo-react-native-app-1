@@ -29,7 +29,7 @@ function Model({ path, position, scale, isActive }) {
   // Rotate the model if it is active
   useFrame(() => {
     if (isActive && modelRef.current) {
-      modelRef.current.rotation.y += 0.001;
+      modelRef.current.rotation.y += 0.005;
     }
   });
 
@@ -85,6 +85,7 @@ export default function HomeScreen() {
       require("@/assets/models/w.gltf"), // Info 3D assets
       require("@/assets/models/s.gltf"),
       require("@/assets/models/b.gltf"),
+      require("@/assets/models/camp.gltf"),
     ],
     action: [
       require("@/assets/models/x.gltf"), // Action 3D assets
@@ -108,6 +109,12 @@ export default function HomeScreen() {
     },
     {
       title: "Model B Information",
+      description: "Details about model B. Random fact 3.",
+      features: ["Feature X", "Feature Y", "Feature Z"],
+      cta: "Explore More",
+    },
+    {
+      title: "Model Camp Information",
       description: "Details about model B. Random fact 3.",
       features: ["Feature X", "Feature Y", "Feature Z"],
       cta: "Explore More",
