@@ -88,6 +88,7 @@ export default function HomeScreen() {
       require("@/assets/models/x.gltf"),
       require("@/assets/models/y.gltf"),
       require("@/assets/models/z.gltf"),
+      require("@/assets/models/quality.gltf"),
     ],
   };
 
@@ -136,6 +137,12 @@ export default function HomeScreen() {
       description: "Details about action Z.",
       features: ["Task Alpha", "Task Beta"],
       cta: "Execute",
+    },
+    {
+      title: "Model Quality Information",
+      description: "Details about model Quality.",
+      features: ["Feature X", "Feature Y"],
+      cta: "Explore More",
     },
   ];
 
